@@ -1,5 +1,5 @@
 #![allow(warnings)]
-use std::{env, result};
+use std::{env, result, io};
 use num::traits::ConstZero;
 use rand::{thread_rng, Rng};
 use rand::seq::SliceRandom;
@@ -155,24 +155,44 @@ fn garbled_circuit(key: [[[u8; 16]; 2]; 2], gate: String) -> [[u8; 16]; 4]{
     garbled_circuit.shuffle(&mut rng);
     garbled_circuit
 }
-fn main() {
-    env::set_var("RUST_BACKTRACE", "1");
+
+// Protocol
+fn main(){
     let args: Vec<String> = env::args().collect();
+    if args.len() < 4  {
+        eprintln!("Usage: garbler|evaluator <bit> <gate>");
+        std::process::exit(1);
+    }
 
-    let garbler_bit = thread_rng().gen_bool(0.5) as u8;
-    let garbled_key = generate_random_keys();
+    let mut garbler_bit: u8;
+    let mut garbled_key = [[[0u8; 16]; 2]; 2];
+    let mut evaluator_bit: u8;
+
+    if args[1] == "garbler" {
+        garbler_bit = (&args[2]).parse().unwrap();
+        println!("Enter four 16-byte keys for garbler");
+        for i in 0..4{
+            let mut hexkey = String::new();
+            io::stdin().read_line(&mut hexkey).expect("Failed to read line");
+            let key = hex::decode(hexkey.trim()).unwrap();
+            garbled_key[i>>1][i%2] = key.try_into().unwrap();
+        }
+        evaluator_bit = thread_rng().gen_bool(0.5) as u8;
+    } 
+    else {
+        garbler_bit = thread_rng().gen_bool(0.5) as u8;
+        garbled_key = generate_random_keys();
+        evaluator_bit = (&args[2]).parse().unwrap();
+    }
+    
     let garbled_circuit = garbled_circuit(garbled_key, String::from("XOR"));
-
-    let evaluator_bit: u8 = (&args[1]).parse().unwrap();
-
     let evaluator_key = oblivious_transfer(garbled_key[1], evaluator_bit);
     let encrypt_key = key_derivation(garbled_key[0][garbler_bit as usize], evaluator_key);
     for &encrypted_value in garbled_circuit.iter() {
         let temp = decryption(encrypt_key, encrypted_value);
         let value = unpad(temp);
         if value.is_some() {
-            println!("{}", value.unwrap());
+            println!("Value: {}", value.unwrap());
         }
     }
-
 }
