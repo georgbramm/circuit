@@ -17,9 +17,13 @@ fn key_derivation(key1: [u8; 16], key2: [u8; 16]) -> [u8; 16]{
     assert_eq!(key1.len(), key2.len(), "Key is not equal");
     let mut result = [0u8; 16];
 
-    for i in 0..16 {
-        result[i] = key1[i] ^ key2[i];
-    }
+    let mut hasher = Shake128::default();
+    let mut key1_vec = key1.to_vec();
+    let mut key2_vec = key2.to_vec();
+    key1_vec.append(&mut key2_vec);
+    hasher.update(&key1_vec);
+    let mut reader = hasher.finalize_xof();
+    reader.read(&mut result);
     result
 }
 
@@ -66,7 +70,7 @@ fn decryption(key: [u8; 16], ciphertext: [u8; 16]) -> [u8; 16] {
 }
 
 // Hash function
-fn hash(message: BigUint) -> [u8; 16]{
+fn hash_message(message: BigUint) -> [u8; 16]{
     let mut hasher = Shake128::default();
     let message_bytes = message.to_bytes_be();
     hasher.update(&message_bytes);
@@ -126,11 +130,11 @@ fn oblivious_transfer(keys: [[u8; 16]; 2], bit: u8) -> [u8; 16] {
     let b_pub = (g.modpow(&b_priv, &p) * a_pub.modpow(&bit_num, &p)) % &p;
     let a_pub_inverse = a_pub.modinv(&p).unwrap();
 
-    let keyr = hash(a_pub.modpow(&b_priv, &p));
+    let keyr = hash_message(a_pub.modpow(&b_priv, &p));
     
     let mut hashkey = [[0u8; 16]; 2];
-    hashkey[0] = hash(b_pub.modpow(&a_priv, &p));
-    hashkey[1] = hash((b_pub.modpow(&a_priv, &p) * a_pub_inverse.modpow(&a_priv, &p)) % p);
+    hashkey[0] = hash_message(b_pub.modpow(&a_priv, &p));
+    hashkey[1] = hash_message((b_pub.modpow(&a_priv, &p) * a_pub_inverse.modpow(&a_priv, &p)) % p);
 
     let mut e = [[0u8; 16]; 2];
     e[0] = encryption(hashkey[0], keys[0]);
