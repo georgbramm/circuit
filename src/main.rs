@@ -1,15 +1,16 @@
 #![allow(warnings)]
 use std::{env, result, io};
 use num::traits::ConstZero;
-use rand::{thread_rng, Rng};
-use rand::seq::SliceRandom;
+//use rand::{thread_rng, Rng};
+//use rand::seq::SliceRandom;
 use aes::Aes128;
 use aes::cipher::{
     BlockEncrypt, BlockDecrypt, KeyInit,
     generic_array::GenericArray,
 };
 use num::{BigUint, FromPrimitive};
-use num::bigint::RandomBits;
+//use rand::prelude::SliceRandom;
+//use num::bigint::RandomBits;
 use sha3::{Shake128, digest::{Update, ExtendableOutput, XofReader}};
 
 // Key derivation function
@@ -106,11 +107,11 @@ fn truth_table(gate: String) -> [[u8; 3]; 4] {
 
 // Generate random keys
 fn generate_random_keys() -> [[[u8; 16]; 2]; 2] {
-    let mut rng = rand::thread_rng();
+    //let mut rng = rand::thread_rng();
     let mut keys = [[[0u8; 16]; 2]; 2];
     for row in keys.iter_mut() {
         for key in row.iter_mut() {
-            rng.fill(&mut key[..]);
+            getrandom::fill(&mut key[..]).expect("getrandom() error");
         }
     }
     keys
@@ -119,11 +120,15 @@ fn generate_random_keys() -> [[[u8; 16]; 2]; 2] {
 // Oblivious transfer
 // From https://eprint.iacr.org/2015/267.pdf
 fn oblivious_transfer(keys: [[u8; 16]; 2], bit: u8) -> [u8; 16] {
-    let mut rng = rand::thread_rng();
+    //let mut rng = rand::thread_rng();
     let p = BigUint::parse_bytes(b"8232614617976856279072317982427644624595758235537723089819576056282601872542631717078779952011141109568991428115823956738415293901639693425529719101034229", 10).unwrap();
     let g = BigUint::from_bytes_be(b"2");
-    let a_priv: BigUint = rng.sample(RandomBits::new(512));
-    let b_priv: BigUint = rng.sample(RandomBits::new(512));
+    let mut a_buf = [0u8; 64];
+    let mut b_buf = [0u8; 64];
+    getrandom::fill(&mut a_buf).expect("getrandom() error");
+    getrandom::fill(&mut b_buf).expect("getrandom() error");
+    let a_priv: BigUint = BigUint::from_bytes_be(&a_buf);
+    let b_priv: BigUint = BigUint::from_bytes_be(&b_buf);
     let bit_num = BigUint::from(bit);
 
     let a_pub = g.modpow(&a_priv, &p);
@@ -147,7 +152,7 @@ fn oblivious_transfer(keys: [[u8; 16]; 2], bit: u8) -> [u8; 16] {
 // Permute garbled circuit
 fn garbled_circuit(key: [[[u8; 16]; 2]; 2], gate: String) -> [[u8; 16]; 4]{
     let truth_table = truth_table(gate);
-    let mut rng = thread_rng();
+    //let mut rng = thread_rng();
 
     let mut garbled_circuit = [[0u8; 16]; 4];
     for i in 0..4 {
@@ -155,9 +160,20 @@ fn garbled_circuit(key: [[[u8; 16]; 2]; 2], gate: String) -> [[u8; 16]; 4]{
         let padded_bit = pad(truth_table[i][2]);
         garbled_circuit[i] = encryption(encryption_key, padded_bit);
     }
-
-    garbled_circuit.shuffle(&mut rng);
+    let mut res_buf =  [0u8; 4];
+    getrandom::fill(&mut res_buf).expect("getrandom() error");
+    place_at_indices(&mut garbled_circuit, &mut res_buf);
     garbled_circuit
+}
+
+fn place_at_indices<T>(original: &mut [T], indices: &mut [u8]) {
+    for i in 0..indices.len() {
+        while i != indices[i].into() {
+            let new_i = indices[i];
+            indices.swap(i, new_i.into());
+            original.swap(i, new_i.into());
+        }
+    }
 }
 
 // Protocol
@@ -181,10 +197,14 @@ fn main(){
             let key = hex::decode(hexkey.trim()).unwrap();
             garbled_key[i>>1][i%2] = key.try_into().unwrap();
         }
-        evaluator_bit = thread_rng().gen_bool(0.5) as u8;
+        let mut buf = [0u8; 1];
+        getrandom::fill(&mut buf).expect("getrandom() error");
+        evaluator_bit = buf[0];
     } 
     else {
-        garbler_bit = thread_rng().gen_bool(0.5) as u8;
+        let mut buf = [0u8; 1];
+        getrandom::fill(&mut buf).expect("getrandom() error");
+        garbler_bit = buf[0];
         garbled_key = generate_random_keys();
         evaluator_bit = (&args[2]).parse().unwrap();
     }
