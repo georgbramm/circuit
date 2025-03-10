@@ -14,7 +14,7 @@ use num::{BigUint, FromPrimitive};
 use sha3::{Shake128, digest::{Update, ExtendableOutput, XofReader}};
 
 // Key derivation function
-fn key_derivation(key1: [u8; 16], key2: [u8; 16]) -> [u8; 16]{
+pub fn key_derivation(key1: [u8; 16], key2: [u8; 16]) -> [u8; 16]{
     assert_eq!(key1.len(), key2.len(), "Key is not equal");
     let mut result = [0u8; 16];
 
@@ -52,7 +52,7 @@ fn unpad(padded_bit: [u8; 16]) -> Option<u8> {
 }
 
 // Encrypt/Decrypt function
-fn encryption(key: [u8; 16], plaintext: [u8; 16]) -> [u8; 16] {
+pub fn encryption(key: [u8; 16], plaintext: [u8; 16]) -> [u8; 16] {
     let aes_key = GenericArray::from(key);
     let mut block = GenericArray::from(plaintext);
     let cipher = Aes128::new(&aes_key);
@@ -61,7 +61,7 @@ fn encryption(key: [u8; 16], plaintext: [u8; 16]) -> [u8; 16] {
     ciphertext
 }
 
-fn decryption(key: [u8; 16], ciphertext: [u8; 16]) -> [u8; 16] {
+pub fn decryption(key: [u8; 16], ciphertext: [u8; 16]) -> [u8; 16] {
     let aes_key = GenericArray::from(key);
     let mut block = GenericArray::from(ciphertext);
     let cipher = Aes128::new(&aes_key);
@@ -106,7 +106,7 @@ fn truth_table(gate: String) -> [[u8; 3]; 4] {
 }
 
 // Generate random keys
-fn generate_random_keys() -> [[[u8; 16]; 2]; 2] {
+pub fn generate_random_keys() -> [[[u8; 16]; 2]; 2] {
     //let mut rng = rand::thread_rng();
     let mut keys = [[[0u8; 16]; 2]; 2];
     for row in keys.iter_mut() {
@@ -119,7 +119,7 @@ fn generate_random_keys() -> [[[u8; 16]; 2]; 2] {
 
 // Oblivious transfer
 // From https://eprint.iacr.org/2015/267.pdf
-fn oblivious_transfer(keys: [[u8; 16]; 2], bit: u8) -> [u8; 16] {
+pub fn oblivious_transfer(keys: [[u8; 16]; 2], bit: u8) -> [u8; 16] {
     //let mut rng = rand::thread_rng();
     let p = BigUint::parse_bytes(b"8232614617976856279072317982427644624595758235537723089819576056282601872542631717078779952011141109568991428115823956738415293901639693425529719101034229", 10).unwrap();
     let g = BigUint::from_bytes_be(b"2");
@@ -150,7 +150,7 @@ fn oblivious_transfer(keys: [[u8; 16]; 2], bit: u8) -> [u8; 16] {
 }
 
 // Permute garbled circuit
-fn garbled_circuit(key: [[[u8; 16]; 2]; 2], gate: String) -> [[u8; 16]; 4]{
+pub fn garbled_circuit(key: [[[u8; 16]; 2]; 2], gate: String) -> [[u8; 16]; 4]{
     let truth_table = truth_table(gate);
     //let mut rng = thread_rng();
 
