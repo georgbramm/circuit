@@ -160,19 +160,18 @@ pub fn garbled_circuit(key: [[[u8; 16]; 2]; 2], gate: String) -> [[u8; 16]; 4]{
         let padded_bit = pad(truth_table[i][2]);
         garbled_circuit[i] = encryption(encryption_key, padded_bit);
     }
-    let mut res_buf =  [0u8; 4];
-    getrandom::fill(&mut res_buf).expect("getrandom() error");
-    place_at_indices(&mut garbled_circuit, &mut res_buf);
+    shuffle(&mut garbled_circuit);
     garbled_circuit
 }
 
-fn place_at_indices<T>(original: &mut [T], indices: &mut [u8]) {
-    for i in 0..indices.len() {
-        while i != indices[i].into() {
-            let new_i = indices[i];
-            indices.swap(i, new_i.into());
-            original.swap(i, new_i.into());
-        }
+pub fn shuffle<T>(vec: &mut [T]) {
+    let n: usize = vec.len();
+    for i in 0..(n - 1) {
+        // Generate random index j, such that: i <= j < n
+        // The remainder (`%`) after division is always less than the divisor.
+        let rand = getrandom::u32().expect("getrandom() error");
+        let j = (rand as usize) % (n - i) + i;
+        vec.swap(i, j);
     }
 }
 
