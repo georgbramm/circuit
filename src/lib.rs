@@ -3,8 +3,8 @@ use aes::cipher::{
     BlockEncrypt, BlockDecrypt, KeyInit,
     generic_array::GenericArray,
 };
-use num::BigUint;
 use sha3::{Shake128, digest::{Update, ExtendableOutput, XofReader}};
+pub use num::BigUint;
 
 // Key derivation function
 pub fn key_derivation(key1: [u8; 16], key2: [u8; 16]) -> [u8; 16]{
@@ -98,6 +98,18 @@ fn truth_table(gate: String) -> [[u8; 3]; 4] {
     }
 }
 
+// Generate keys from hex
+// MUST be 4 hex values
+pub fn generate_keys(hex_keys: Vec<String>) -> [[[u8; 16]; 2]; 2] {
+    //let mut rng = rand::thread_rng();
+    let mut keys = [[[0u8; 16]; 2]; 2];
+    for i in 0..4 {
+        let key = hex::decode(hex_keys.get(i).unwrap().trim()).unwrap();
+        keys[i>>1][i%2] = key.try_into().unwrap();
+    }
+    keys
+}
+
 // Generate random keys
 pub fn generate_random_keys() -> [[[u8; 16]; 2]; 2] {
     //let mut rng = rand::thread_rng();
@@ -138,7 +150,7 @@ pub fn oblivious_transfer(keys: [[u8; 16]; 2], bit: u8) -> [u8; 16] {
     e[0] = encryption(hashkey[0], keys[0]);
     e[1] = encryption(hashkey[1], keys[1]);
 
-    let mr = decryption(keyr, e[bit as usize]);
+    let mr = decryption(keyr, e[(bit as usize) % e.len()]);
     mr
 }
 
